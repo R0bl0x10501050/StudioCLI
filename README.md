@@ -6,4 +6,4 @@ You can read about the plugin & the documentation [here](https://devforum.roblox
 You can install the plugin [here](https://www.roblox.com/library/7347744413/StudioCLI).
 
 ## Notice
-THe main branch is the developer build, whiole the rest of the branches correspond to their version.
+The main branch is the developer build, whiole the rest of the branches correspond to their version.
