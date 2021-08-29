@@ -1,4 +1,5 @@
 local Cmds = require(script.Parent.Commands)
+local SyntaxHighlighter = require(script.SyntaxHighligher)
 
 local CLI_VERSION = "1.0.0"
 --local PACKAGE_STORAGE_VERSION = "0.0.1"
@@ -13,6 +14,14 @@ local function getDictionaryLength(dict)
 		length += 1
 	end
 	return length
+end
+
+local function clearTags(str: string)
+	-- Credit to @JohnnyMorganz for the string pattern
+	-- https://devforum.roblox.com/t/richtext-textscaled-support-added/634167/171
+	if str == nil then return nil end
+	if str == "" or str:match("^%s$") then return str end
+	return str:gsub("</?%s*[bius]%s*>", ""):gsub("</?font%s*[%w%s='\"\(\),]*>", "")
 end
 
 local TerminalHandler = {}
@@ -58,6 +67,7 @@ end
 
 function TerminalHandler:NewInput(default)
 	local connection = "FetchLastInput_"..math.random()
+	local highlighter
 	
 	local text = self.UI:FindFirstChildOfClass("TextLabel"):Clone()
 	text.Name = "DeleteMe"
@@ -70,6 +80,7 @@ function TerminalHandler:NewInput(default)
 	msg.ClearTextOnFocus = false
 	msg.PlaceholderText = ""
 	msg.Font = Enum.Font.Ubuntu
+	msg.RichText = true
 	msg.TextColor3 = self.UI:FindFirstChildOfClass("TextLabel").TextColor3
 	msg.TextScaled = false
 	msg.TextSize = 20
@@ -78,8 +89,9 @@ function TerminalHandler:NewInput(default)
 	msg.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
 			--CAS:UnbindAction(connection)
+			highlighter:Highlight()
 			self.plugin:SetSetting("LastInput", msg.Text)
-			self:__evaluate(msg.Text)
+			self:__evaluate(highlighter:RequestOriginalText()) --self:__evaluate(clearTags(msg.Text))
 			msg.Focused:Connect(function()
 				msg:ReleaseFocus(false)
 			end)
@@ -103,6 +115,8 @@ function TerminalHandler:NewInput(default)
 	--	false,
 	--	Enum.KeyCode.Up
 	--)
+	
+	highlighter = SyntaxHighlighter.new(msg, false)
 	
 	if self.PATH == game then
 		text.Size = UDim2.new(0, 63, 0, 20)
