@@ -103,13 +103,14 @@ function TerminalHandler:NewInput(default)
 	msg.PlaceholderText = ""
 	msg.Font = Enum.Font.Ubuntu
 	msg.RichText = false
+	msg.Text = ""
 	msg.TextColor3 = self.UI:FindFirstChildOfClass("TextLabel").TextColor3
 	msg.TextScaled = false
 	msg.TextSize = 20
-	msg.TextTransparency = 1
+	msg.TextTransparency = 0.5 --1
 	msg.TextXAlignment = Enum.TextXAlignment.Left
 	msg.TextYAlignment = Enum.TextYAlignment.Center
-	msg.ZIndex = 2
+	msg.ZIndex = 1 --2
 	
 	--TextLabel
 	local label = Instance.new("TextLabel", self.UI)
@@ -125,7 +126,7 @@ function TerminalHandler:NewInput(default)
 	label.TextTransparency = 0
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Center
-	label.ZIndex = 1
+	label.ZIndex = 2 --1
 	
 	--Cursor
 	--local cursor = Instance.new("Frame", self.UI)
@@ -134,6 +135,7 @@ function TerminalHandler:NewInput(default)
 	msg.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
 			--CAS:UnbindAction(connection)
+			task.wait()
 			if self.OPTIONS.colors then
 				highlighter:Highlight(false)
 				local command = highlighter:RequestOriginalText()
