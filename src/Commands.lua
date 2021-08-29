@@ -562,7 +562,7 @@ return {
 		local VARIABLES = {
 			HOME = "game",
 			PATH = self.PATH == game and "game" or "game/"..self.PATH:GetFullName():gsub("%.", "/"),
-			OLDPATH = self.PREVIOUS_PATH == game and "game" or "game/"..self.PREVIOUS_PATH:GetFullName():gsub("%.", "/"),
+			OLDPATH = (self.PREVIOUS_PATH or game) == game and "game" or "game/"..(self.PREVIOUS_PATH or game):GetFullName():gsub("%.", "/"),
 		}
 		
 		for i, v in ipairs(args) do
