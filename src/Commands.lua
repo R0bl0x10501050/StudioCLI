@@ -19,6 +19,10 @@ local REGISTRY = {
 	-- Version 1.0.0 Modules
 }
 
+local PLUGIN_OPTIONS = {
+	"colors"
+}
+
 -----------------------------------------------------------------------------------------------------------------
 
 local SERVICES = {
@@ -80,6 +84,13 @@ return {
 	},
 	
 	-- CUSTOM COMMANDS
+	
+	['toggle'] = function(self, regular, args, flags)
+		if (not regular[1]) or (type(regular[1]) ~= "string") then return end
+		if table.find(PLUGIN_OPTIONS, regular[1]:lower()) then
+			self.OPTIONS[regular[1]:lower()] = not self.OPTIONS[regular[1]:lower()]
+		end
+	end,
 	
 	['decalimg'] = function(self, regular, args, flags)
 		-- Convert decal ID to image ID
@@ -212,6 +223,27 @@ return {
 				end
 			end
 		end,
+		['import'] = function(self, regular, args, flags)
+			local directory = self.PATH
+			if table.find(flags, "g") or args['global'] then
+				directory = game.ReplicatedStorage:FindFirstChild("rbx_modules")
+				if not directory then
+					directory = Instance.new("Folder", game.ReplicatedStorage)
+					directory.Name = "rbx_modules"
+				end
+			end
+			
+			for _, file in (SERVICES.StudioService:PromptImportFiles({--[["rbxmx", ]]"lua"})) do
+				if file.Name:find(".lua") then
+					local importedScript = Instance.new("Script", directory)
+					importedScript.Source = file:GetBinaryContents()
+				elseif file.Name:find(".rbxmx") then
+					-- Finish the XML Decoder
+					-- Make this read the raw XML data
+					-- and create Instances based on it
+				end
+			end
+		end,
 		['init'] = function(self, regular, args, flags)
 			if game.ReplicatedStorage:FindFirstChild("PACKAGE") then
 				if table.find(flags, "f") then
@@ -240,7 +272,8 @@ return {
 			if tonumber(packageName) then
 				--local latestVersion = SERVICES.InsertService:GetLatestAssetVersionAsync(tonumber(packageName))
 				--local module = SERVICES.InsertService:LoadAssetVersion(latestVersion):GetChildren()[1]
-				local module = game:GetObjects("rbxassetid://"..tostring(packageName))[1]
+				local objects = game:GetObjects("rbxassetid://"..tostring(packageName))
+				local module = objects[1]
 				if table.find(flags, "g") or args['global'] then
 					if module then
 						if not game.ReplicatedStorage:FindFirstChild("rbx_modules") then
@@ -256,13 +289,16 @@ return {
 						module:SetAttribute("rbx_package_ID", packageName)
 					end
 				end
+				objects = nil -- Was this the memory leak?
 			else
 				if REGISTRY[tostring(packageName):upper()] then
 					--local latestVersion = SERVICES.InsertService:GetLatestAssetVersionAsync(REGISTRY[tostring(packageName):upper()])
 					--local module = SERVICES.InsertService:LoadAssetVersion(latestVersion):GetChildren()[1]
-					local module = game:GetObjects("rbxassetid://"..tostring(REGISTRY[tostring(packageName):upper()]))[1]
+					local objects = game:GetObjects("rbxassetid://"..tostring(REGISTRY[tostring(packageName):upper()]))
+					local module = objects[1]
 					module:SetAttribute("rbx_package_ID", packageName)
 					if module then module.Parent = self.PATH end
+					objects = nil
 				end
 			end
 		end,
