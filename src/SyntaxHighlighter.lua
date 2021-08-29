@@ -59,6 +59,11 @@ function SyntaxHighligher.new(instance, target, live)
 		self.thread = task.spawn(function()
 			self.connected = instance:GetPropertyChangedSignal("Text"):Connect(function()
 				if instance.Text == "" then target.Text = "" return end
+				local beginning = instance.Text:gsub("^%s", "")
+				if instance.Text:match("^%s.*") then
+					instance.Text = beginning
+					return
+				end
 				self:Highlight(true)
 			end)
 		end)
@@ -173,7 +178,11 @@ function SyntaxHighligher:Highlight(bool)
 	--split[1] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.cmd.R*255))..","..tostring(math.round(HIGHLIGHTING.cmd.G*255))..","..tostring(math.round(HIGHLIGHTING.cmd.B*255))..")\">"..clearTags(split[1]).."</font>"
 	--print(split)
 	
-	target.Text = table.concat(split, " ")
+	if source.Text:split("")[1]:match("%s") then
+		target.Text = " "..table.concat(split, " ")
+	else
+		target.Text = table.concat(split, " ")
+	end
 end
 
 function SyntaxHighligher:Destroy()
