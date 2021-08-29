@@ -4,6 +4,7 @@ local SyntaxHighlighter = require(script.SyntaxHighligher)
 local CLI_VERSION = "1.1.0"
 --local PACKAGE_STORAGE_VERSION = "0.0.1"
 
+local UIS = game:GetService("UserInputService")
 local CAS = game:GetService("ContextActionService")
 
 local bashCommands = {'cd', 'echo', 'edit', 'exit', 'head', 'less', 'ls', 'mkdir', 'pwd', 'rm', 'rmdir', 'tail', 'touch'}
@@ -84,6 +85,16 @@ function TerminalHandler:NewInput(default)
 	text.Name = "DeleteMe"
 	text.Position = UDim2.fromOffset(0, self.UI:GetAttribute("Lines")*20)
 	
+	-- How live highlighting will work
+	
+	-- TextBox (stores actual text, is on top, isn't visible aka has TextTransparency of 1)
+	-- Passes over the text to the highlighter
+	-- Puts highlighted text in the TextLabel
+	
+	-- TextLabel (stores highlighted text, is visible)
+	-- Stores actual highlighted text that the end user sees
+	
+	--TextBox
 	local msg = Instance.new("TextBox", self.UI)
 	msg.Name = "DeleteMe"
 	msg.Active = true
@@ -91,17 +102,40 @@ function TerminalHandler:NewInput(default)
 	msg.ClearTextOnFocus = false
 	msg.PlaceholderText = ""
 	msg.Font = Enum.Font.Ubuntu
-	msg.RichText = true
+	msg.RichText = false
 	msg.TextColor3 = self.UI:FindFirstChildOfClass("TextLabel").TextColor3
 	msg.TextScaled = false
 	msg.TextSize = 20
+	msg.TextTransparency = 1
 	msg.TextXAlignment = Enum.TextXAlignment.Left
 	msg.TextYAlignment = Enum.TextYAlignment.Center
+	msg.ZIndex = 2
+	
+	--TextLabel
+	local label = Instance.new("TextLabel", self.UI)
+	label.Name = "DeleteMe"
+	label.Active = false
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.Ubuntu
+	label.RichText = true
+	label.Text = ""
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextScaled = false
+	label.TextSize = 20
+	label.TextTransparency = 0
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.ZIndex = 1
+	
+	--Cursor
+	--local cursor = Instance.new("Frame", self.UI)
+	--cursor.Name = "DeleteMe"
+	
 	msg.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
 			--CAS:UnbindAction(connection)
 			if self.OPTIONS.colors then
-				highlighter:Highlight()
+				highlighter:Highlight(false)
 				local command = highlighter:RequestOriginalText()
 				self.plugin:SetSetting("LastInput", command)
 				self:__evaluate(command)
@@ -136,7 +170,7 @@ function TerminalHandler:NewInput(default)
 	--)
 	
 	if self.OPTIONS.colors then
-		highlighter = SyntaxHighlighter.new(msg, false)
+		highlighter = SyntaxHighlighter.new(msg, label, true)
 	end
 	
 	if self.PATH == game then
@@ -146,6 +180,8 @@ function TerminalHandler:NewInput(default)
 		
 		msg.Position = UDim2.fromOffset(63, self.UI:GetAttribute("Lines")*20)
 		msg.Size = UDim2.new(1, -63, 0, 20)
+		label.Position = UDim2.fromOffset(63, self.UI:GetAttribute("Lines")*20)
+		label.Size = UDim2.new(1, -63, 0, 20)
 	else
 		local PATH = "game/"..string.gsub(self.PATH:GetFullName(), "%.", "/")
 		local textSize = game:GetService("TextService"):GetTextSize(PATH.."> ", text.TextSize, Enum.Font.Ubuntu, self.Restricted.AbsoluteSize)
@@ -155,6 +191,8 @@ function TerminalHandler:NewInput(default)
 		
 		msg.Position = UDim2.fromOffset(textSize.X, self.UI:GetAttribute("Lines")*20)
 		msg.Size = UDim2.new(1, -textSize.X, 0, 20)
+		label.Position = UDim2.fromOffset(textSize.X, self.UI:GetAttribute("Lines")*20)
+		label.Size = UDim2.new(1, -textSize.X, 0, 20)
 	end
 	
 	msg.Parent = self.UI
