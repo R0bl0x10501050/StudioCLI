@@ -559,6 +559,22 @@ return {
 		end
 	end,
 	['echo'] = function(self, args)
+		local VARIABLES = {
+			HOME = "game",
+			PATH = self.PATH,
+			OLDPATH = self.PREVIOUS_PATH
+		}
+		
+		for i, v in ipairs(args) do
+			if v:match("^%$.*") then
+				args[i] = VARIABLES[v:gsub("%$", "")]
+			elseif v:match("\"") then
+				args[i] = v:gsub("\"", "")
+			elseif v:match("\'") then
+				args[i] = v:gsub("\'", "")
+			end
+		end
+		
 		self:NewMsg(table.concat(args, " "))
 	end,
 	['edit'] = function(self, args)
