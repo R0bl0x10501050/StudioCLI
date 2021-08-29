@@ -47,18 +47,20 @@ end
 local SyntaxHighligher = {}
 SyntaxHighligher.__index = SyntaxHighligher
 
-function SyntaxHighligher.new(instance, live)
+function SyntaxHighligher.new(instance, target, live)
 	local self = setmetatable({
 		instance = instance,
-		connected = true
+		target = target,
+		live = live,
+		connected = nil
 	}, SyntaxHighligher)
 	
-	if live then
+	if self.live then
 		self.thread = task.spawn(function()
-			while self.connected == true do
-				self:Highlight()
-				wait(0.5)
-			end
+			self.connected = instance:GetPropertyChangedSignal("Text"):Connect(function()
+				if instance.Text == "" then target.Text = "" return end
+				self:Highlight(true)
+			end)
 		end)
 	end
 	
@@ -103,15 +105,23 @@ function SyntaxHighligher:RequestOriginalText()
 	return (originalText or "")
 end
 
-function SyntaxHighligher:Highlight()
-	local text = self.instance.Text
-	if text:split("")[1]:match("%s") then
+function SyntaxHighligher:Highlight(bool)
+	local source, target
+	
+	source = self.instance
+	target = self.target
+	
+	local text = source.Text or ""
+	
+	if text == "" then return end
+	
+	local textSplit = text:split("")[1]
+	if textSplit and textSplit:match("%s") then
 		text = text:gsub("^.", "")
 	end
 	
 	local isString = false
 	local split = text:split(" ")
-	
 	local currentIndex = 1
 	local currentToken = clearTags(split[currentIndex])
 	
@@ -121,10 +131,18 @@ function SyntaxHighligher:Highlight()
 	end
 	
 	while currentToken ~= nil do
-		if currentToken:match("%s") then
+		if currentToken:match("^%s") then
 			table.remove(split, currentIndex)
 		else
-			if not currentToken then continue end
+			if currentIndex > #split or currentToken == nil then
+				break
+			end
+			
+			if (currentToken == "") or (currentToken:match("^.") == nil) then
+				advance()
+				continue
+			end
+			
 			if currentIndex == 1 then
 				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.cmd.R*255))..","..tostring(math.round(HIGHLIGHTING.cmd.G*255))..","..tostring(math.round(HIGHLIGHTING.cmd.B*255))..")\">"..split[currentIndex].."</font>"
 			elseif isString then
@@ -155,11 +173,11 @@ function SyntaxHighligher:Highlight()
 	--split[1] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.cmd.R*255))..","..tostring(math.round(HIGHLIGHTING.cmd.G*255))..","..tostring(math.round(HIGHLIGHTING.cmd.B*255))..")\">"..clearTags(split[1]).."</font>"
 	--print(split)
 	
-	self.instance.Text = table.concat(split, " ")
+	target.Text = table.concat(split, " ")
 end
 
 function SyntaxHighligher:Destroy()
-	self.connected = false
+	if self.connected then self.connected:Disconnect() self.connected = nil end
 	if self.thread then coroutine.yield(self.thread) end
 	self = nil
 end
