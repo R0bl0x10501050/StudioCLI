@@ -11,11 +11,13 @@
 local RS = game:GetService("RunService")
 
 local HIGHLIGHTING = {
-	['cmd'] = Color3.fromRGB(255, 255, 0),
+	['cmd'] = Color3.fromRGB(233, 233, 64),
 	['regular'] = Color3.fromRGB(238, 238, 238),
-	['flags'] = Color3.fromRGB(70, 70, 70),
-	['variables'] = Color3.fromRGB(0, 182, 12),
-	['numbers'] = Color3.fromRGB(255, 198, 0)
+	['flags'] = Color3.fromRGB(102, 102, 102),
+	['variables'] = Color3.fromRGB(34, 195, 130),			-- Don't even ask why I added this one, it's useless
+	['numbers'] = Color3.fromRGB(255, 183, 0),
+	['strings'] = Color3.fromRGB(32, 168, 195)
+	-- I like PowerShell colors ok?
 }
 
 local function detectDoubleHyphen(str: string)
@@ -107,6 +109,7 @@ function SyntaxHighligher:Highlight()
 		text = text:gsub("^.", "")
 	end
 	
+	local isString = false
 	local split = text:split(" ")
 	
 	local currentIndex = 1
@@ -124,12 +127,23 @@ function SyntaxHighligher:Highlight()
 			if not currentToken then continue end
 			if currentIndex == 1 then
 				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.cmd.R*255))..","..tostring(math.round(HIGHLIGHTING.cmd.G*255))..","..tostring(math.round(HIGHLIGHTING.cmd.B*255))..")\">"..split[currentIndex].."</font>"
+			elseif isString then
+				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.strings.R*255))..","..tostring(math.round(HIGHLIGHTING.strings.G*255))..","..tostring(math.round(HIGHLIGHTING.strings.B*255))..")\">"..split[currentIndex].."</font>"
+				if currentToken:match(".$"):match("\"") then
+					isString = false
+				end
 			elseif startsWith(currentToken, "-") then
 				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.flags.R*255))..","..tostring(math.round(HIGHLIGHTING.flags.G*255))..","..tostring(math.round(HIGHLIGHTING.flags.B*255))..")\">"..split[currentIndex].."</font>"
 			elseif currentToken:match("^."):match("%$") then
 				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.variables.R*255))..","..tostring(math.round(HIGHLIGHTING.variables.G*255))..","..tostring(math.round(HIGHLIGHTING.variables.B*255))..")\">"..split[currentIndex].."</font>"
 			elseif currentToken:match("^."):match("%d") then
 				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.numbers.R*255))..","..tostring(math.round(HIGHLIGHTING.numbers.G*255))..","..tostring(math.round(HIGHLIGHTING.numbers.B*255))..")\">"..split[currentIndex].."</font>"
+			elseif currentToken:match("^."):match("\"") then
+				isString = true
+				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.strings.R*255))..","..tostring(math.round(HIGHLIGHTING.strings.G*255))..","..tostring(math.round(HIGHLIGHTING.strings.B*255))..")\">"..split[currentIndex].."</font>"
+				if currentToken:match(".$"):match("\"") then
+					isString = false
+				end
 			elseif currentToken:match("^."):match("%a") then
 				split[currentIndex] = "<font color=\"rgb("..tostring(math.round(HIGHLIGHTING.regular.R*255))..","..tostring(math.round(HIGHLIGHTING.regular.G*255))..","..tostring(math.round(HIGHLIGHTING.regular.B*255))..")\">"..split[currentIndex].."</font>"
 			end
