@@ -561,8 +561,8 @@ return {
 	['echo'] = function(self, args)
 		local VARIABLES = {
 			HOME = "game",
-			PATH = self.PATH,
-			OLDPATH = self.PREVIOUS_PATH
+			PATH = self.PATH == game and "game" or "game/"..self.PATH:GetFullName():gsub("%.", "/"),
+			OLDPATH = self.PREVIOUS_PATH == game and "game" or "game/"..self.PREVIOUS_PATH:GetFullName():gsub("%.", "/"),
 		}
 		
 		for i, v in ipairs(args) do
