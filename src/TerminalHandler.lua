@@ -24,12 +24,23 @@ local function clearTags(str: string)
 	return str:gsub("</?%s*[bius]%s*>", ""):gsub("</?font%s*[%w%s='\"\(\),]*>", "")
 end
 
+local function clearWhitespace(instance)
+	local text = instance.Text
+	if text:split("")[1]:match("%s") then
+		text = text:gsub("^.", "")
+	end
+	instance.Text = text
+end
+
 local TerminalHandler = {}
 TerminalHandler.PATH = game
 TerminalHandler.PREVIOUS_PATH = nil
 
 function TerminalHandler:Init(frame, pluginInstance)
 	self.plugin = pluginInstance
+	self.OPTIONS = {
+		colors = true
+	}
 	self.UI = frame
 	self.Restricted = self.UI:FindFirstChildOfClass("TextLabel"):Clone()
 	self.Restricted.Position = UDim2.fromOffset(0, self.UI:GetAttribute("Lines")*20)
@@ -89,9 +100,17 @@ function TerminalHandler:NewInput(default)
 	msg.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
 			--CAS:UnbindAction(connection)
-			highlighter:Highlight()
-			self.plugin:SetSetting("LastInput", msg.Text)
-			self:__evaluate(highlighter:RequestOriginalText()) --self:__evaluate(clearTags(msg.Text))
+			if self.OPTIONS.colors then
+				highlighter:Highlight()
+				local command = highlighter:RequestOriginalText()
+				self.plugin:SetSetting("LastInput", command)
+				self:__evaluate(command)
+			else
+				clearWhitespace(msg)
+				self.plugin:SetSetting("LastInput", msg.Text)
+				self:__evaluate(msg.Text)
+			end
+			
 			msg.Focused:Connect(function()
 				msg:ReleaseFocus(false)
 			end)
@@ -116,7 +135,9 @@ function TerminalHandler:NewInput(default)
 	--	Enum.KeyCode.Up
 	--)
 	
-	highlighter = SyntaxHighlighter.new(msg, false)
+	if self.OPTIONS.colors then
+		highlighter = SyntaxHighlighter.new(msg, false)
+	end
 	
 	if self.PATH == game then
 		text.Size = UDim2.new(0, 63, 0, 20)
