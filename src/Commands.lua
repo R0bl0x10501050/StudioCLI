@@ -741,6 +741,31 @@ return {
 			self:NewMsg("Cannot use rmdir on a non-directory")
 		end
 	end,
+	['run'] = function(self)
+		if self.PATH:IsA("ModuleScript") and self.PATH.Name:split(".")[2] == 'cli' then
+			local file = self.PATH
+			local file_name = file.Name
+			local file_source = file.Source
+			local file_parent = file.Parent
+			file:Destroy()
+			file = Instance.new("ModuleScript", game.ReplicatedStorage)
+			file.Name = file_name
+			file.Source = file_source
+			file.Parent = file_parent
+			
+			self.PATH = file
+			
+			local commands = require(file)
+			
+			for _, command in ipairs(commands) do
+				self:__evaluate(command, false)
+			end
+		elseif self.PATH.Name:split(".")[2] ~= 'cli' then
+			self:NewMsg("File must end in '.cli'")
+		else
+			self:NewMsg("Cannot run a non-ModuleScript")
+		end
+	end,
 	['tail'] = function(self, args)
 		local params = args
 		local txt = string.split(string.gsub(self.PATH[params[1]].Source, "\t", ""), "\n")
