@@ -1,7 +1,7 @@
 local Cmds = require(script.Parent.Commands)
 local SyntaxHighlighter = require(script.SyntaxHighligher)
 
-local CLI_VERSION = "1.1.0"
+local CLI_VERSION = "1.2.0"
 --local PACKAGE_STORAGE_VERSION = "0.0.1"
 
 local UIS = game:GetService("UserInputService")
