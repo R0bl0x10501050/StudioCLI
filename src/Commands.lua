@@ -3,10 +3,10 @@ RBX_VERSION = "1.0.0"
 local REGISTRY = {
 	-- Beta Stage Modules
 	['COLORPLUS']		= 7200837815, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/colorplus-a-color3-library/1391617
-	['ROQUERY']			= 7128769023, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/roquery-do-more-with-your-code/1364337
+	['ROQUERY']		= 7128769023, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/roquery-do-more-with-your-code/1364337
 	['FPSSETTER']		= 7020204992, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/fpssetter-set-players-fps/1319561
 	['RCONSOLE']		= 6794533185, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/rconsole-js-console-in-roblox/1215944
-	['CONVERT']			= 6183613353, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/convert-easy-ways-to-convert-different-values/960291
+	['CONVERT']		= 6183613353, 					-- Created by @R0bl0x10501050 | https://devforum.roblox.com/t/convert-easy-ways-to-convert-different-values/960291
 	
 	['REPLICASERVICE'] 	= 6015318619,					-- Created by @loleris | https://devforum.roblox.com/t/replicate-your-states-with-replicaservice-networking-system/894736
 	['PROFILESERVICE'] 	= 5331689994,					-- Created by @loleris | https://devforum.roblox.com/t/save-your-player-data-with-profileservice-datastore-module/667805
@@ -286,7 +286,7 @@ return {
 					end
 				elseif table.find(flags, "d") or args['dev'] then
 					if module then
-						module.Parent = script.Parent:FindFirstChild("DEV_MODULES")
+						module.Parent = self.UI.DEV_MODULES
 						module:SetAttribute("rbx_package_ID", packageName)
 					end
 				else
@@ -313,7 +313,7 @@ return {
 						end
 					elseif table.find(flags, "d") or args['dev'] then
 						if module then
-							module.Parent = script.Parent:FindFirstChild("DEV_MODULES")
+							module.Parent = self.UI.DEV_MODULES
 							module:SetAttribute("rbx_package_ID", packageName)
 						end
 					else
@@ -404,7 +404,7 @@ return {
 					end
 				end
 			elseif table.find(flags, "d") or args['dev'] then
-				for _, v in ipairs(script.Parent.DEV_MODULES:GetChildren()) do
+				for _, v in ipairs(self.UI.DEV_MODULES:GetChildren()) do
 					if v:GetAttribute("rbx_package_ID") == packageName then
 						v:Destroy()
 						break
@@ -496,7 +496,7 @@ return {
 			elseif table.find(flags, "d") or args['dev'] then
 				-- Dev
 				if table.find(flags, 'a') or args['all'] then
-					for _, package in ipairs(script.Parent.DEV_MODULES:GetChildren()) do
+					for _, package in ipairs(self.UI.DEV_MODULES:GetChildren()) do
 						if package:GetAttribute("rbx_package_ID") then
 							local v = package:GetAttribute("rbx_package_ID")
 							package:Destroy()
@@ -505,19 +505,19 @@ return {
 								--local module = SERVICES.InsertService:LoadAssetVersion(latestVersion):GetChildren()[1]
 								local module = game:GetObjects("rbxassetid://"..tostring(tonumber(v)))[1]
 								module:SetAttribute("rbx_package_ID", v)
-								if module then module.Parent = script.Parent.DEV_MODULES end
+								if module then module.Parent = self.UI.DEV_MODULES end
 							else
 								--local latestVersion = SERVICES.InsertService:GetLatestAssetVersionAsync(REGISTRY[tostring(v):upper()])
 								--local module = SERVICES.InsertService:LoadAssetVersion(latestVersion):GetChildren()[1]
 								local module = game:GetObjects("rbxassetid://"..tostring(tonumber(REGISTRY[tostring(v):upper()])))[1]
 								module:SetAttribute("rbx_package_ID", v)
-								if module then module.Parent = script.Parent.DEV_MODULES end
+								if module then module.Parent = self.UI.DEV_MODULES end
 							end
 						end
 					end
 				else
 					for _, v in ipairs(regular) do
-						for _, package in ipairs(script.Parent.DEV_MODULES:GetChildren()) do
+						for _, package in ipairs(self.UI.DEV_MODULES:GetChildren()) do
 							if package:GetAttribute("rbx_package_ID") == v or package:GetAttribute("rbx_package_ID") == REGISTRY[tostring(v):upper()] then
 								package:Destroy()
 								if tonumber(v) then
@@ -525,13 +525,13 @@ return {
 									--local module = SERVICES.InsertService:LoadAssetVersion(latestVersion):GetChildren()[1]
 									local module = game:GetObjects("rbxassetid://"..tostring(tonumber(v)))[1]
 									module:SetAttribute("rbx_package_ID", v)
-									if module then module.Parent = script.Parent.DEV_MODULES end
+									if module then module.Parent = self.UI.DEV_MODULES end
 								else
 									--local latestVersion = SERVICES.InsertService:GetLatestAssetVersionAsync(REGISTRY[tostring(v):upper()])
 									--local module = SERVICES.InsertService:LoadAssetVersion(latestVersion):GetChildren()[1]
 									local module = game:GetObjects("rbxassetid://"..tostring(tonumber(REGISTRY[tostring(v):upper()])))[1]
 									module:SetAttribute("rbx_package_ID", v)
-									if module then module.Parent = script.Parent.DEV_MODULES end
+									if module then module.Parent = self.UI.DEV_MODULES end
 								end
 								
 								break
