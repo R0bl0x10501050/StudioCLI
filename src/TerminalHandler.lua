@@ -9,6 +9,19 @@ local CAS = game:GetService("ContextActionService")
 
 local bashCommands = {'cd', 'echo', 'edit', 'exit', 'head', 'less', 'ls', 'mkdir', 'pwd', 'rm', 'rmdir', 'tail', 'touch'}
 
+local themes = {
+	['DEFAULT'] = {
+		['TextColor3'] = Color3.new(1, 1, 1),
+		['TextTransparency'] = 0,
+		['BackgroundColor3'] = Color3.new(0.0235294, 0.0235294, 0.0235294)
+	},
+	['LIGHT'] = {
+		['TextColor3'] = Color3.new(0, 0, 0),
+		['TextTransparency'] = 0.25,
+		['BackgroundColor3'] = Color3.new(1, 1, 1)
+	}
+}
+
 local function getDictionaryLength(dict)
 	local length = 0
 	for k, _ in pairs(dict) do
@@ -43,6 +56,32 @@ function TerminalHandler:Init(frame, pluginInstance)
 		colors = true
 	}
 	self.UI = frame
+	self.Theme = themes["DEFAULT"]
+	
+	-- Config
+	local config = game.ReplicatedStorage:FindFirstChild("config.cli")
+	local config_source = config.Source
+	config:Destroy()
+	config = Instance.new("ModuleScript", game.ReplicatedStorage)
+	config.Name = "config.cli"
+	config.Source = config_source
+	
+	if config and config:IsA("ModuleScript") then
+		local pluginSettings = require(config)
+		for name, value in pairs(pluginSettings) do
+			if (name and type(name) == "string" and name:upper() == "THEME") and (value and themes[value:upper()]) then
+				self.Theme = themes[value:upper()]
+			end
+		end
+	end
+	
+	-- Theme
+	local theme = self.Theme
+	self.UI.BackgroundColor3 = theme.BackgroundColor3
+	self.UI.Display.TextColor3 = theme.TextColor3
+	self.UI.Display.TextTransparency = theme.TextTransparency
+	
+	-- Misc
 	self.Restricted = self.UI:FindFirstChildOfClass("TextLabel"):Clone()
 	self.Restricted.Position = UDim2.fromOffset(0, self.UI:GetAttribute("Lines")*20)
 	self.Restricted.Size = UDim2.new(1, 0, 0, 20)
@@ -50,10 +89,20 @@ function TerminalHandler:Init(frame, pluginInstance)
 	self.UI:SetAttribute("Lines", self.UI:GetAttribute("Lines")+1)
 	self.Restricted.Text = "StudioCLI v"..CLI_VERSION..". Type 'help' to display a list of commands. Type 'clear' to clear."
 	
-	-- Not needed, was meant for if global packages installed in ALL games
-	--if self.plugin:GetSetting("PACKAGE_STORAGE_VERSION") ~= (PACKAGE_STORAGE_VERSION or "0.0.0") then
-	--	self.plugin:SetSetting("GlobalPackages", {})
-	--end
+	-- Profiles
+	local profile = game.ReplicatedStorage:FindFirstChild("profile.cli")
+	local profile_source = profile.Source
+	profile:Destroy()
+	profile = Instance.new("ModuleScript", game.ReplicatedStorage)
+	profile.Name = "profile.cli"
+	profile.Source = profile_source
+	
+	if profile and profile:IsA("ModuleScript") then
+		local commands = require(profile)
+		for _, command in ipairs(commands) do
+			self:__evaluate(command, false)
+		end
+	end
 	
 	self:NewInput()
 end
@@ -65,6 +114,8 @@ function TerminalHandler:NewLine()
 	blank.Size = UDim2.new(1, 0, 0, 20)
 	blank.Parent = self.UI
 	self.UI:SetAttribute("Lines", self.UI:GetAttribute("Lines")+1)
+	--self.UI.CanvasPosition = Vector2.new(0, (self.UI.Parent.AbsoluteSize.Y * self.UI.CanvasSize.Y.Scale) + self.UI.CanvasSize.Y.Offset + 500)
+	self.UI.CanvasPosition = Vector2.new(0, (self.UI:GetAttribute("Lines")*20) + 50)
 end
 
 function TerminalHandler:NewMsg(text)
@@ -75,6 +126,8 @@ function TerminalHandler:NewMsg(text)
 	msg.Parent = self.UI
 	msg.Text = text
 	self.UI:SetAttribute("Lines", self.UI:GetAttribute("Lines")+1)
+	--self.UI.CanvasPosition = Vector2.new(0, (self.UI.Parent.AbsoluteSize.Y * self.UI.CanvasSize.Y.Scale) + self.UI.CanvasSize.Y.Offset + 500)
+	self.UI.CanvasPosition = Vector2.new(0, (self.UI:GetAttribute("Lines")*20) + 50)
 end
 
 function TerminalHandler:NewInput(default)
@@ -140,11 +193,11 @@ function TerminalHandler:NewInput(default)
 				highlighter:Highlight(false)
 				local command = highlighter:RequestOriginalText()
 				self.plugin:SetSetting("LastInput", command)
-				self:__evaluate(command)
+				self:__evaluate(command, true)
 			else
 				clearWhitespace(msg)
 				self.plugin:SetSetting("LastInput", msg.Text)
-				self:__evaluate(msg.Text)
+				self:__evaluate(msg.Text, true)
 			end
 			
 			msg.Focused:Connect(function()
@@ -202,6 +255,8 @@ function TerminalHandler:NewInput(default)
 	self.plugin:SetSetting("Focus", msg)
 	
 	self.UI:SetAttribute("Lines", self.UI:GetAttribute("Lines")+1)
+	--self.UI.CanvasPosition = Vector2.new(0, (self.UI.Parent.AbsoluteSize.Y * self.UI.CanvasSize.Y.Scale) + self.UI.CanvasSize.Y.Offset + 500)
+	self.UI.CanvasPosition = Vector2.new(0, (self.UI:GetAttribute("Lines")*20) + 50)
 	
 	if type(default) == "string" then
 		msg.Text = default
@@ -216,15 +271,19 @@ function TerminalHandler:Clear()
 			v:Destroy()
 		end
 	end
+	
 	self.UI:SetAttribute("Lines", 1)
+	--self.UI.CanvasPosition = Vector2.new(0, (self.UI.Parent.AbsoluteSize.Y * self.UI.CanvasSize.Y.Scale) + self.UI.CanvasSize.Y.Offset)
+	self.UI.CanvasPosition = Vector2.new(0, (self.UI:GetAttribute("Lines")*20) + 50)
+	
 	self:NewInput()
 end
 
-function TerminalHandler:__evaluate(input)
+function TerminalHandler:__evaluate(input, newLine)
 	-- Remove strange whitespace at beginning
 	if input == "" then
 		self:NewMsg("Could not find command '"..input.."'")
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 		return
 	end
 	
@@ -343,23 +402,47 @@ function TerminalHandler:__evaluate(input)
 	
 	-- Default commands
 	if input == 'alias' then
-		local name = args[1]
-		if name == "clear" then self.plugin:SetSetting("Aliases", {}) self:NewInput() return end
-		local argument3 = ""
-		for k, v in ipairs(args) do
-			if k < 3 then continue end
-			argument3 = argument3 .. " " .. v
+		print(cmdExtension)
+		local name = cmdExtension[1]
+		if name == "clear" then self.plugin:SetSetting("Aliases", {}) if newLine == true then self:NewInput() end return end
+		table.remove(cmdExtension, 1)
+		if cmdExtension[1] ~= "=" then
+			self:NewMsg("Failed to set alias \""..name.."\"")
+			if newLine == true then self:NewInput() end
+			return
+		else
+			table.remove(cmdExtension, 1)
+			local argument3 = table.concat(cmdExtension, " ")
+			local command = string.gsub(argument3, "\"", "")
+			if Cmds[name] then self:NewMsg("Cannot overwrite existing command") if newLine == true then self:NewInput() end return end
+			local dictionary = self.plugin:GetSetting("Aliases") or {}
+			dictionary[name] = command
+			self.plugin:SetSetting("Aliases", dictionary)
+			if newLine == true then self:NewInput() end
+			return
 		end
-		local command = string.gsub(argument3, "\"", "")
-		if Cmds[name] then self:NewMsg("Cannot overwrite existing command") self:NewInput() return end
-		local dictionary = self.plugin:GetSetting("Aliases") or {}
-		dictionary[name] = command
-		self.plugin:SetSetting("Aliases", dictionary)
-		self:NewInput()
-		return
 	end
 	if input == 'clear' or input == 'cls' then self:Clear() return end
-	if input == 'hardreset' then self.PREVIOUS_PATH = nil self.PATH = game self:NewInput() return end
+	if input == 'function' then
+		local name = cmdExtension[1]
+		table.remove(cmdExtension, 1)
+		if cmdExtension[1] ~= "{" and cmdExtension[#cmdExtension] == "}" then
+			self:NewMsg("Failed to set function \""..name.."\"")
+			if newLine == true then self:NewInput() end
+			return
+		else
+			table.remove(cmdExtension, #cmdExtension)
+			local commands = {}
+			local combined = table.concat(cmdExtension, " ")
+			commands = combined:split(";")
+			local dictionary = self.plugin:GetSetting("Functions") or {}
+			dictionary[name] = commands
+			self.plugin:SetSetting("Functions", dictionary)
+			if newLine == true then self:NewInput() end
+			return
+		end
+	end
+	if input == 'hardreset' then self.PREVIOUS_PATH = nil self.PATH = game if newLine == true then self:NewInput() end return end
 	if input == 'help' then
 		self:NewLine()
 		self:NewMsg("COMMANDS")
@@ -378,11 +461,11 @@ function TerminalHandler:__evaluate(input)
 		self:NewMsg("tail 	- Read the last 10 lines of the specified file")
 		self:NewMsg("touch 	- Create a new file in the current directory")
 		--self:NewLine()
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 		return
 	end
-	if input == 'reset' then self.PATH = game self:NewInput() return end
-	if input == 'version' then self:NewMsg(CLI_VERSION) self:NewInput() return end
+	if input == 'reset' then self.PATH = game if newLine == true then self:NewInput() end return end
+	if input == 'version' then self:NewMsg(CLI_VERSION) if newLine == true then self:NewInput() end return end
 	
 	--print(cmdExtension)
 	--print(args)
@@ -405,10 +488,10 @@ function TerminalHandler:__evaluate(input)
 			--self:NewMsg("Successfully executed command '"..string.split(input, " ")[1].."' in "..((endTime - startTime)/1000).." seconds")
 		end
 		
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 	elseif type(Cmds[input]) == 'string' then
 		self:NewMsg(Cmds[input])
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 	elseif type(Cmds[input]) == 'function' then
 		local startTime = DateTime.now().UnixTimestampMillis
 		
@@ -427,7 +510,7 @@ function TerminalHandler:__evaluate(input)
 			--self:NewMsg("Successfully executed command '"..string.split(input, " ")[1].."' in "..((endTime - startTime)/1000).." seconds")
 		end
 		
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 	elseif type(Cmds[input]) == 'table' and getDictionaryLength(cmdExtension) ~= 0 and type(Cmds[input][1]) ~= "string" then
 		local library = Cmds[input]
 		local passedExtension = {}
@@ -479,7 +562,7 @@ function TerminalHandler:__evaluate(input)
 			--self:NewMsg("Successfully executed command '"..functionName.."' in "..((endTime - startTime)/1000).." seconds")
 		end
 		
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 	elseif type(Cmds[input]) == 'table' and type(Cmds[input][1]) == 'string' and type(Cmds[input][2]) == 'function' then
 		local startTime = DateTime.now().UnixTimestampMillis
 		
@@ -500,7 +583,7 @@ function TerminalHandler:__evaluate(input)
 			--self:NewMsg("Successfully executed command '"..string.split(input, " ")[1].."' in "..((endTime - startTime)/1000).." seconds")
 		end
 		
-		self:NewInput()
+		if newLine == true then self:NewInput() end
 	else
 		local aliases = self.plugin:GetSetting("Aliases") or {}
 		local aliasCMD = aliases[input]
@@ -512,14 +595,24 @@ function TerminalHandler:__evaluate(input)
 					local split2 = string.split(v, "")
 					if string.find(split2[1], "%s") then table.remove(split2, 1) end
 					if string.find(split2[#split2], "%s") then table.remove(split2, #split2) end
-					self:__evaluate(table.concat(split2, ""))
+					self:__evaluate(table.concat(split2, ""), true)
 				end)
 			else
-				self:__evaluate(aliases[input])
+				self:__evaluate(aliases[input], true)
 			end
 		else
-			self:NewMsg("Could not find command '"..string.split(input, " ")[1].."'")
-			self:NewInput()
+			local functions = self.plugin:GetSetting("Functions") or {}
+			local functionsCMD = functions[input]
+			
+			if functionsCMD then
+				for _, v in ipairs(functionsCMD) do
+					self:__evaluate(v, false)
+					if newLine == true then self:NewInput() end
+				end
+			else
+				self:NewMsg("Could not find command '"..string.split(input, " ")[1].."'")
+				if newLine == true then self:NewInput() end
+			end
 		end
 	end
 end
