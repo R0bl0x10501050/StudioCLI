@@ -28,6 +28,7 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 )
 
 local terminal = plugin:CreateDockWidgetPluginGui("terminal", widgetInfo)
+terminal.Name = "StudioCLI"
 terminal.Title = "CLI - Terminal"
 
 local pluginAction = plugin:CreatePluginAction("EnterTerminal", "Enter Terminal", "Enter the StudioCLI Terminal", "rbxasset://textures/sparkle.png", true)
