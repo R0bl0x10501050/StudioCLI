@@ -60,13 +60,13 @@ function TerminalHandler:Init(frame, pluginInstance)
 	
 	-- Config
 	local config = game.ReplicatedStorage:FindFirstChild("config.cli")
-	local config_source = config.Source
-	config:Destroy()
-	config = Instance.new("ModuleScript", game.ReplicatedStorage)
-	config.Name = "config.cli"
-	config.Source = config_source
-	
 	if config and config:IsA("ModuleScript") then
+		local config_source = config.Source
+		config:Destroy()
+		config = Instance.new("ModuleScript", game.ReplicatedStorage)
+		config.Name = "config.cli"
+		config.Source = config_source
+		
 		local pluginSettings = require(config)
 		for name, value in pairs(pluginSettings) do
 			if (name and type(name) == "string" and name:upper() == "THEME") and (value and themes[value:upper()]) then
@@ -91,13 +91,13 @@ function TerminalHandler:Init(frame, pluginInstance)
 	
 	-- Profiles
 	local profile = game.ReplicatedStorage:FindFirstChild("profile.cli")
-	local profile_source = profile.Source
-	profile:Destroy()
-	profile = Instance.new("ModuleScript", game.ReplicatedStorage)
-	profile.Name = "profile.cli"
-	profile.Source = profile_source
-	
 	if profile and profile:IsA("ModuleScript") then
+		local profile_source = profile.Source
+		profile:Destroy()
+		profile = Instance.new("ModuleScript", game.ReplicatedStorage)
+		profile.Name = "profile.cli"
+		profile.Source = profile_source
+		
 		local commands = require(profile)
 		for _, command in ipairs(commands) do
 			self:__evaluate(command, false)
