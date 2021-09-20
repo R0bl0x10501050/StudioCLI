@@ -118,13 +118,14 @@ function TerminalHandler:NewLine()
 	self.UI.CanvasPosition = Vector2.new(0, (self.UI:GetAttribute("Lines")*20) + 50)
 end
 
-function TerminalHandler:NewMsg(text)
+function TerminalHandler:NewMsg(text, richtext: boolean?)
 	local msg = self.UI:FindFirstChildOfClass("TextLabel"):Clone()
 	msg.Name = "DeleteMe"
 	msg.Position = UDim2.fromOffset(0, self.UI:GetAttribute("Lines")*20)
 	msg.Size = UDim2.new(1, 0, 0, 20)
 	msg.Parent = self.UI
 	msg.Text = text
+	if richtext then msg.RichText = true end
 	self.UI:SetAttribute("Lines", self.UI:GetAttribute("Lines")+1)
 	--self.UI.CanvasPosition = Vector2.new(0, (self.UI.Parent.AbsoluteSize.Y * self.UI.CanvasSize.Y.Scale) + self.UI.CanvasSize.Y.Offset + 500)
 	self.UI.CanvasPosition = Vector2.new(0, (self.UI:GetAttribute("Lines")*20) + 50)
@@ -332,9 +333,9 @@ function TerminalHandler:__evaluate(input, newLine)
 				local currentKey = currentArg
 				advance()
 				if detectDoubleHyphen(currentArg) then
-					args[table.pack(string.gsub(currentKey, "--", ""))[1]] = ""
+					args[table.pack(string.gsub(currentKey, "%-%-", ""))[1]] = ""
 				else
-					args[table.pack(string.gsub(currentKey, "--", ""))[1]] = currentArg
+					args[table.pack(string.gsub(currentKey, "%-%-", ""))[1]] = currentArg or ""
 					advance()
 				end
 			elseif detectSingleHyphen(currentArg) then
@@ -425,16 +426,24 @@ function TerminalHandler:__evaluate(input, newLine)
 	if input == 'clear' or input == 'cls' then self:Clear() return end
 	if input == 'function' then
 		local name = cmdExtension[1]
+		if name == "clear" then self.plugin:SetSetting("Functions", {}) if newLine == true then self:NewInput() end return end
 		table.remove(cmdExtension, 1)
-		if cmdExtension[1] ~= "{" and cmdExtension[#cmdExtension] == "}" then
-			self:NewMsg("Failed to set function \""..name.."\"")
+		if cmdExtension[1] ~= "{" or cmdExtension[#cmdExtension] ~= "}" then
+			self:NewMsg("Failed to set function \""..name.."\" - Incorrect syntax!")
 			if newLine == true then self:NewInput() end
 			return
 		else
-			table.remove(cmdExtension, #cmdExtension)
+			table.remove(cmdExtension, 1)
+			table.remove(cmdExtension)
 			local commands = {}
 			local combined = table.concat(cmdExtension, " ")
 			commands = combined:split(";")
+			table.foreachi(commands, function(i,v)
+				if commands[i] ~= v then return end
+				if v == "" then
+					table.remove(commands, i)
+				end
+			end)
 			local dictionary = self.plugin:GetSetting("Functions") or {}
 			dictionary[name] = commands
 			self.plugin:SetSetting("Functions", dictionary)
@@ -607,13 +616,13 @@ function TerminalHandler:__evaluate(input, newLine)
 			if functionsCMD then
 				for _, v in ipairs(functionsCMD) do
 					self:__evaluate(v, false)
-					if newLine == true then self:NewInput() end
 				end
 			else
 				self:NewMsg("Could not find command '"..string.split(input, " ")[1].."'")
-				if newLine == true then self:NewInput() end
 			end
 		end
+		
+		if newLine == true then self:NewInput() end
 	end
 end
 
