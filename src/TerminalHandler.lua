@@ -1,13 +1,16 @@
+-- TerminalHandler.lua
+
 local Cmds = require(script.Parent.Commands)
 local SyntaxHighlighter = require(script.SyntaxHighligher)
 
-local CLI_VERSION = "1.2.1"
+local CLI_VERSION = "1.4.0"
 --local PACKAGE_STORAGE_VERSION = "0.0.1"
 
 local UIS = game:GetService("UserInputService")
 local CAS = game:GetService("ContextActionService")
 
 local bashCommands = {'cd', 'echo', 'edit', 'exit', 'head', 'less', 'ls', 'mkdir', 'pwd', 'rm', 'rmdir', 'tail', 'touch'}
+local allowedGameChildren = {game.Workspace, game.Players, game.Lighting, game.ReplicatedFirst, game.ReplicatedStorage, game.ServerScriptService, game.ServerStorage, game.StarterGui, game.StarterPack, game.StarterPlayer, game.SoundService, game.Chat}
 
 local themes = {
 	['DEFAULT'] = {
@@ -46,11 +49,67 @@ local function clearWhitespace(instance)
 	instance.Text = text
 end
 
+local function old_rerequire(scriptFile)
+	if not scriptFile:IsA("ModuleScript") then return nil end
+	local clone, new_parent = scriptFile:Clone(), scriptFile.Parent
+	scriptFile:Destroy()
+	clone.Parent = new_parent
+	return require(clone) or {}
+end
+
+local function rerequire(scriptFile)
+	if not scriptFile:IsA("ModuleScript") then return nil end
+	local clone = scriptFile:Clone()
+	local data = require(clone)
+	clone:Destroy()
+	return data or {}
+end
+
+local function getChild(parent, name)
+	local ITERABLE_TABLE
+	
+	if parent ~= game then
+		ITERABLE_TABLE = parent:GetChildren()
+	else
+		ITERABLE_TABLE = allowedGameChildren
+	end
+	
+	for _, vv in ipairs(ITERABLE_TABLE) do
+		if string.lower(vv.Name) == string.lower(name) then
+			return vv
+		end
+	end
+end
+
+local function getInstanceFromPath(parent, path)
+	if parent == nil then return nil end
+	
+	local split = string.split(path, "/")
+	
+	for k, v in ipairs(split) do
+		if v == ".." then
+			parent = parent.Parent
+			continue
+		elseif v == "." then
+			continue
+		elseif v == "~" then
+			parent = workspace
+		elseif v == "" and k == 1 then
+			parent = game
+		end
+		parent = getChild(parent, v)
+	end
+	
+	return parent
+end
+
 local TerminalHandler = {}
 TerminalHandler.PATH = game
 TerminalHandler.PREVIOUS_PATH = nil
 
 function TerminalHandler:Init(frame, pluginInstance)
+	self.blacklistedVariables = {"plugin", "options", "ui", "theme", "restricted", "init", "clear", "newinput", "newline", "newmsg", "path", "oldpath", "__evaluate", "blacklistedvariables", "home"}
+	self.blacklistedFilteredVariable = {"plugin", "options", "ui", "theme", "restricted", "init", "clear", "newinput", "newline", "newmsg", "path", "oldpath", "__evaluate", "blacklistedvariables"}
 	self.plugin = pluginInstance
 	self.OPTIONS = {
 		colors = true
@@ -190,16 +249,31 @@ function TerminalHandler:NewInput(default)
 		if enterPressed then
 			--CAS:UnbindAction(connection)
 			task.wait()
+			
+			local lastInputList = self.plugin:GetSetting("LastInput") or {}
+			local cmd
+			
 			if self.OPTIONS.colors then
 				highlighter:Highlight(false)
 				local command = highlighter:RequestOriginalText()
-				self.plugin:SetSetting("LastInput", command)
 				self:__evaluate(command, true)
+				cmd = command
 			else
 				clearWhitespace(msg)
-				self.plugin:SetSetting("LastInput", msg.Text)
 				self:__evaluate(msg.Text, true)
+				cmd = msg.Text
 			end
+			
+			table.insert(lastInputList, #lastInputList+1, cmd:gsub("%<", ""):gsub("%>", "") or "")
+			
+			if #lastInputList > 50 then
+				repeat
+					table.remove(lastInputList, 1)
+				until #lastInputList <= 50
+			end
+			
+			self.plugin:SetSetting("LastInput", lastInputList)
+			self.plugin:SetSetting("LastInputNumber", #lastInputList+1)
 			
 			msg.Focused:Connect(function()
 				msg:ReleaseFocus(false)
@@ -207,23 +281,49 @@ function TerminalHandler:NewInput(default)
 		end
 	end)
 	
-	-- Due to the nature of Roblox plugins, pressing the 'UP' key
-	-- will not automaticaly fill in the last input received
-	msg.InputBegan:Connect(function(input)
-		-- print(input.KeyCode, input.UserInputType, input.UserInputState)
-		if input.KeyCode == Enum.KeyCode.Up then
-			msg.Text = self.plugin:GetSetting("LastInput") or ""
+	local unsubmittedText = ""
+	
+	msg:GetPropertyChangedSignal("Text"):Connect(function()
+		if msg.Text == "<" or msg.Text == "^" then
+			local queue = self.plugin:GetSetting("LastInput") or {}
+			local queueNum = self.plugin:GetSetting("LastInputNumber") or #queue + 1
+			local text = queue[queueNum - 1] or ""
+			if text ~= "" and text then
+				self.plugin:SetSetting("LastInputNumber", queueNum - 1)
+			end
+			msg:ReleaseFocus()
+			msg.Text = text
+			msg:CaptureFocus()
+		elseif msg.Text == ">" then
+			local queue = self.plugin:GetSetting("LastInput") or {}
+			local queueNum = self.plugin:GetSetting("LastInputNumber") or #queue + 1
+			local text
+			if queueNum >= #queue + 1 then
+				text = unsubmittedText
+				self.plugin:SetSetting("LastInputNumber", #queue + 1)
+			elseif queueNum == #queue then
+				text = unsubmittedText
+				self.plugin:SetSetting("LastInputNumber", queueNum + 1)
+			else
+				text = queue[queueNum + 1] or ""
+				self.plugin:SetSetting("LastInputNumber", queueNum + 1)
+			end
+			msg:ReleaseFocus()
+			msg.Text = text
+			msg:CaptureFocus()
+		elseif (self.plugin:GetSetting("LastInputNumber") or 1) == #(self.plugin:GetSetting("LastInput") or {}) + 1 then
+			unsubmittedText = msg.Text
 		end
 	end)
 	
-	--CAS:BindAction(
-	--	connection,
-	--	function()
-	--		msg.Text = self.plugin:GetSetting("LastInput") or ""
-	--	end,
-	--	false,
-	--	Enum.KeyCode.Up
-	--)
+	-- Due to the nature of Roblox plugins, pressing the 'UP' key
+	-- will not automaticaly fill in the last input received
+	--msg.InputBegan:Connect(function(input)
+	--	print(input.KeyCode, input.UserInputType, input.UserInputState)
+	--	if input.KeyCode == Enum.KeyCode.Up then
+			
+	--	end
+	--end)
 	
 	if self.OPTIONS.colors then
 		highlighter = SyntaxHighlighter.new(msg, label, true)
@@ -332,7 +432,7 @@ function TerminalHandler:__evaluate(input, newLine)
 			if detectDoubleHyphen(currentArg) then
 				local currentKey = currentArg
 				advance()
-				if detectDoubleHyphen(currentArg) then
+				if detectDoubleHyphen(currentArg) or detectSingleHyphen(currentArg) then
 					args[table.pack(string.gsub(currentKey, "%-%-", ""))[1]] = ""
 				else
 					args[table.pack(string.gsub(currentKey, "%-%-", ""))[1]] = currentArg or ""
@@ -594,6 +694,89 @@ function TerminalHandler:__evaluate(input, newLine)
 		
 		if newLine == true then self:NewInput() end
 	else
+		-- Executable path
+		local exepath = {}
+		
+		for _, exepath_split in ipairs(self.EXEPATH and self.EXEPATH:split(";") or string.split("ServerStorage/bin",  ";")) do
+			if exepath_split == "" or exepath_split == nil then continue end
+			table.insert(exepath, exepath_split)
+		end
+		
+		local function get_bin(bin)
+			bin = getInstanceFromPath(game, bin)
+			if bin then
+				local found_bin_file
+				
+				for _, bin_file in ipairs(bin:GetChildren()) do
+					if bin_file.Name == input then
+						found_bin_file = bin_file
+						break
+					end
+				end
+				
+				if found_bin_file then
+					local library = rerequire(found_bin_file)
+					local passedExtension = {}
+					
+					local currentToken = 1
+					local currentObj = cmdExtension[currentToken]
+					local functionName = nil
+					
+					local function advance()
+						currentToken += 1
+						currentObj = cmdExtension[currentToken]
+					end
+					
+					while currentObj ~= nil do
+						if type(library) == "function" then
+							if not functionName then
+								functionName = cmdExtension[currentToken-1]
+							end
+							table.insert(passedExtension, currentObj)
+							advance()
+							continue
+						end
+						if library[currentObj] then
+							library = library[currentObj]
+						else
+							table.insert(passedExtension, currentObj)
+						end
+						advance()
+					end
+					
+					if not functionName then
+						functionName = input
+					end
+					
+					local startTime = DateTime.now().UnixTimestampMillis
+					
+					local success, e = pcall(function()
+						local passed = {self, passedExtension or {}, args or {}, flags or {}}
+						library(unpack(passed))
+					end)
+					
+					local endTime = DateTime.now().UnixTimestampMillis
+					
+					if not success then
+						self:NewMsg("Error while executing command '"..functionName.."': "..tostring(e))
+					else
+						--self:NewMsg("Successfully executed command '"..functionName.."' in "..((endTime - startTime)/1000).." seconds")
+					end
+					
+					if newLine == true then self:NewInput() end
+					
+					return true
+				end
+			end
+			return false
+		end
+		
+		for _, executable in ipairs(exepath) do
+			local success = get_bin(executable)
+			if success then return end
+		end
+		
+		-- Aliases & Functions
 		local aliases = self.plugin:GetSetting("Aliases") or {}
 		local aliasCMD = aliases[input]
 		
